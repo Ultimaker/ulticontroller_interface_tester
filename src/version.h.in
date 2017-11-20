@@ -1,0 +1,14 @@
+/*
+ * (C) Copyright 2017
+ * Olliver Schinagl <o.schinagl@ultimaker.com>
+ *
+ * SPX-License-Identifier:	AGPL-3.0+
+ *
+ */
+
+#ifndef __UCIT_VERSION_
+#define __UCIT_VERSION_
+
+#define UCIT_VERSION "@GIT_VERSION@"
+
+#endif /* __UCIT_VERSION_ */

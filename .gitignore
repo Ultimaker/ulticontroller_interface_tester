@@ -7,3 +7,15 @@ Session.vim
 # temporary
 .netrwhist
 *~
+
+# CMake.gitignore
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+# Generated files
+src/version.h
+_build*

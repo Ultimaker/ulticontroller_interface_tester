@@ -1,0 +1,8 @@
+[Unit]
+Description=UltiController Interface Tester
+
+[Service]
+ExecStart=/usr/bin/ucit /dev/fb%I
+
+[Install]
+WantedBy=multi-user.target

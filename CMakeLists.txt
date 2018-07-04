@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4.3)
-project(ulticontroller_interface_tester)
+project(ulticontroller_interface_tester C)
 
 find_package(Git)
 

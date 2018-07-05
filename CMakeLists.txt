@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(ulticontroller_interface_tester C)
 
+if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+	message(FATAL_ERROR "In-source builds not allowed, please do out-of-source builds.")
+endif()
+
 find_package(Git)
+find_package(PkgConfig REQUIRED)
 
 include(GNUInstallDirs)
 
-set(CMAKE_C_FLAGS "-Wall -Werror")
+set(CMAKE_C_FLAGS "-Wall -Werror -O3")
 
 set(GIT_VERSION "Unknown")
 if(GIT_FOUND)
@@ -13,9 +18,14 @@ if(GIT_FOUND)
     execute_process(COMMAND ${GIT_EXECUTABLE} describe --dirty --tags --always OUTPUT_VARIABLE GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
 
+pkg_check_modules(LIBEVDEV REQUIRED libevdev)
+
 configure_file(${CMAKE_SOURCE_DIR}/src/version.h.in ${CMAKE_SOURCE_DIR}/src/version.h)
 
 add_executable(ucit src/ucit.c)
+target_include_directories(ucit PUBLIC "${LIBEVDEV_INCLUDE_DIRS}")
+target_link_libraries(ucit "${LIBEVDEV_LIBRARIES}")
+target_compile_options(ucit PUBLIC "${LIBEVDEV_CFLAGS_OTHER}")
 
 install(PROGRAMS "${CMAKE_BINARY_DIR}/ucit"
 	DESTINATION "${CMAKE_INSTALL_FULL_BINDIR}")

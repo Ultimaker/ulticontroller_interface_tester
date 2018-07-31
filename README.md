@@ -49,3 +49,5 @@ operating system.
   noticeable when enabling both the banding option and the fade.
 * Fading does not look properly when banding due to the XOR.
 * On a black background, no banding is possible.
+* When setting the -a flag to abort the test on successful touch test, the
+  last square is not rendered.

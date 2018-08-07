@@ -87,10 +87,6 @@ cleanup build environment:
 # ==================
 .build pkg common: &pkg_common
   <<: *parameters_common
-  image: "${CI_REGISTRY_IMAGE}:latest"
-
-build package:
-  <<: *pkg_common
   stage: build
   script:
     - ./build.sh
@@ -99,3 +95,27 @@ build package:
     paths:
       - ./*.deb
     expire_in: 3 days
+
+build dev in new container package:
+  <<: *pkg_common
+  except:
+    - master
+  only:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /dockerimage/i
+  image: "${CI_COMMIT_SHA}:${CI_PIPELINE_ID}"
+
+build dev package:
+  <<: *pkg_common
+  except:
+    refs:
+      - master
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /dockerimage/i
+  image: "${CI_REGISTRY_IMAGE}:latest"
+
+build master package:
+  <<: *pkg_common
+  only:
+    - master
+  image: "${CI_REGISTRY_IMAGE}:latest"

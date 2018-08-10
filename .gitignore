@@ -19,3 +19,5 @@ install_manifest.txt
 # Generated files
 src/version.h
 _build*
+.build*
+*.deb

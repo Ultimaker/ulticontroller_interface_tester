@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -190,6 +191,7 @@ static void version(void)
 static void usage(char *argv0)
 {
 	printf("Usage: %s [OPTION] ... [<fb_dev> [<ev_dev>]]\n"
+	       "  -a, --abort				abort touch test ok\n"
 	       "  -e, --evdev=<event_dev>		force event device <ev_dev>t\n"
 	       "  -f, --fbdev=<fb_dev>			force framebuffer device <fb_dev>\n"
 	       "  -t, --touchsize=<X[xY]>		input size X x Y of test pattern (default %ux%u)\n"
@@ -322,9 +324,36 @@ static void background_draw(uint8_t *buffer, const uint8_t *mask, struct display
 }
 
 /**
- * input_draw() - draw received input events
+ * input_matrix_check() - check whether all grid coordinates where activated
+ *
+ * @matrix:		input verification matrix
+ * @matrix_size:	number of elements in @matrix
+ *
+ * Checks if all rectangles in the @matrix have been activated. When so, print
+ * this to stdout and reset the matrix.
+ *
+ * Return:		true if all elements where activated, false otherwise.
+ */
+static bool input_matrix_check(bool *matrix, const size_t matrix_size)
+{
+	size_t size = matrix_size;
+
+	while (--size) {
+		if (!matrix[size])
+			return false;
+	}
+
+	puts("Input test: success");
+	memset(matrix, false, matrix_size);
+
+	return true;
+}
+
+/**
+ * input_mark() - mark received input events
  *
  * @mask:	mask buffer to render input events into
+ * @matrix:	input matrix buffer to mark input events into
  * @disp:	pointer to a valid and initialized display_info struct
  * @x:		x coordinate of input event to render
  * @y:		y coordinate of input event to render
@@ -333,20 +362,21 @@ static void background_draw(uint8_t *buffer, const uint8_t *mask, struct display
  *
  * This function will render a test pattern as input event into @buffer of
  * size <xsize>x<ysize> clamped to those sizes, separated by a border of
- * TEST_PATTERN_BORDER size. For potential automatic test verification and
- * analysis the input coordinate is printed to stdout.
+ * TEST_PATTERN_BORDER size. For potential automatic test verification the
+ * input event within the square grid is also stored in @matrix.
  *
  * Note that the @mask buffer needs to be the same size as the framebuffer.
  */
-static void input_draw(uint8_t *mask, const struct display_info *disp,
+static void input_mark(uint8_t *mask, bool *matrix, const struct display_info *disp,
 		       int32_t x, int32_t y, uint32_t xsize, uint32_t ysize)
 {
 	uint32_t row = 0;
 
-	printf("touch event @ x:%d y:%d\n", x, y);
-
 	x = clamp(x, xsize);
 	y = clamp(y, ysize);
+
+	row = (disp->line_length / disp->bpp / xsize);
+	matrix[(row * (y / ysize)) + (x / xsize)] = true;
 
 	xsize -= TEST_PATTERN_BORDER;
 	ysize -= TEST_PATTERN_BORDER;
@@ -396,6 +426,7 @@ static void input_fade(uint8_t *mask, size_t mask_len, uint8_t speed)
  * @ysize:	size along the Y-axis for the test pattern
  * @fade:	speed of fade (decay) of the test pattern
  * @banding:	enable banding of the background test pattern
+ * @abort:	abort if touch test is ok
  *
  * This function takes the supplied parameters and uses these to render the
  * main application to @disp. The input itself is rendered into a buffer
@@ -404,20 +435,23 @@ static void input_fade(uint8_t *mask, size_t mask_len, uint8_t speed)
  * the backbuffer to the framebuffer once every DISPLAY_FRAME_RATE. The rest
  * of the time is used to scan for input.
  *
- * Note that this function is unlikely to return.
- *
  * Return:	0 on success, an error code otherwise.
  */
 static int renderloop(struct libevdev *evdev, struct display_info *disp,
-		     uint32_t xsize, uint32_t ysize, uint32_t fade, const bool banding)
+		      uint32_t xsize, uint32_t ysize, uint32_t fade,
+		      const bool banding, const bool abort)
 {
 	bool frame_drawn = false;
 	bool update_input = false;
 	clock_t offset = 0;
+	size_t matrix_size = (disp->xres / xsize) * (disp->yres / ysize);
+	bool matrix[matrix_size];
 	uint32_t elapsed = 0;
 	uint8_t *backbuffer = NULL, *touchmask = NULL;
 
 	memset(disp->fb, 0x00, disp->fb_len);
+
+	memset(matrix, false, matrix_size);
 
 	backbuffer = (uint8_t *)calloc(disp->fb_len, sizeof(uint8_t));
 	if (!backbuffer)
@@ -463,7 +497,11 @@ static int renderloop(struct libevdev *evdev, struct display_info *disp,
 					elapsed++;
 			}
 			if (update_input) {
-				input_draw(touchmask, disp, x, y, xsize, ysize);
+				input_mark(touchmask, matrix, disp, x, y, xsize, ysize);
+
+				if (input_matrix_check(matrix, matrix_size) && abort)
+					break;
+
 				update_input = false;
 			}
 		}
@@ -794,6 +832,7 @@ err_out:
  *
  * @argc:	argument count, as passed from main()
  * @argv:	argument list, as passed from main()
+ * @abort:	returns the abort on test success setting
  * @fbpath:	returns the frame buffer device supplied via -f or NULL
  * @evpath:	returns the input event device supplied via -e or NULL
  * @xsize:	returns the size along the X-axis for the test pattern
@@ -807,11 +846,12 @@ err_out:
  *
  * Return:	0 on success or an error otherwise.
  */
-static int parse_opts(int argc, char *argv[], char **fbpath, char **evpath, uint32_t *xsize, uint32_t *ysize, uint32_t *fadespeed, bool *banding)
+static int parse_opts(int argc, char *argv[], bool *abort, char **fbpath, char **evpath, uint32_t *xsize, uint32_t *ysize, uint32_t *fadespeed, bool *banding)
 {
 	int c;
 	int option_index = 0;
 	static struct option long_options[] = {
+		{ "abort",	no_argument,		NULL, 'a' },
 		{ "fb", 	required_argument,	NULL, 'f' },
 		{ "evdev",	required_argument,	NULL, 'e' },
 		{ "touchsize",	required_argument,	NULL, 't' },
@@ -822,14 +862,18 @@ static int parse_opts(int argc, char *argv[], char **fbpath, char **evpath, uint
 		{ NULL,		0,			NULL, 0 }
 	};
 
+	*abort = false;
 	*banding = false;
 	*evpath = NULL;
 	*fadespeed = INPUT_DEFAULT_FADE;
 	*fbpath = NULL;
 	*xsize = INPUT_DEFAULT_XSIZE;
 	*ysize = INPUT_DEFAULT_YSIZE;
-	while ((c = getopt_long(argc, argv, "f:e:t:s:bvh", long_options, &option_index)) != -1) {
+	while ((c = getopt_long(argc, argv, "ae:f:t:s:bvh", long_options, &option_index)) != -1) {
 		switch(c) {
+		case 'a':
+			*abort = true;
+			break;
 		case 'e':
 			*evpath = strdup(optarg);
 			break;
@@ -884,6 +928,7 @@ static int parse_opts(int argc, char *argv[], char **fbpath, char **evpath, uint
 
 int main(int argc, char *argv[])
 {
+	bool abort = false;
 	bool banding = false;
 	char *evpath = NULL;
 	char *fbpath = NULL;
@@ -898,7 +943,7 @@ int main(int argc, char *argv[])
 	act.sa_handler = sigint_handler;
 	sigaction(SIGINT, &act, NULL);
 
-	ret = parse_opts(argc, argv, &fbpath, &evpath, &xsize, &ysize, &fade, &banding);
+	ret = parse_opts(argc, argv, &abort, &fbpath, &evpath, &xsize, &ysize, &fade, &banding);
 	if (ret)
 		return EXIT_FAILURE;
 
@@ -912,7 +957,7 @@ int main(int argc, char *argv[])
 		goto err_disp;
 	}
 
-	renderloop(evdev, disp, xsize, ysize, fade, banding);
+	renderloop(evdev, disp, xsize, ysize, fade, banding, abort);
 
 	libevdev_free(evdev);
 

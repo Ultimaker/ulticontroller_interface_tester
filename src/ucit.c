@@ -367,7 +367,7 @@ static bool input_matrix_check(bool *matrix, const size_t matrix_size)
  *
  * Note that the @mask buffer needs to be the same size as the framebuffer.
  */
-static void input_draw(uint8_t *mask, bool *matrix, const struct display_info *disp,
+static void input_mark(uint8_t *mask, bool *matrix, const struct display_info *disp,
 		       int32_t x, int32_t y, uint32_t xsize, uint32_t ysize)
 {
 	uint32_t row = 0;

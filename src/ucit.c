@@ -192,10 +192,10 @@ static void usage(char *argv0)
 {
 	printf("Usage: %s [OPTION] ... [<fb_dev> [<ev_dev>]]\n"
 	       "  -a, --abort				abort touch test ok\n"
-	       "  -e, --evdev=<event_dev>		force event device <ev_dev>t\n"
+	       "  -e, --evdev=<event_dev>		force event device <ev_dev>\n"
 	       "  -f, --fbdev=<fb_dev>			force framebuffer device <fb_dev>\n"
 	       "  -t, --touchsize=<X[xY]>		input size X x Y of test pattern (default %ux%u)\n"
-	       "  -s, --fadespeed <speed>		input fadeout speed (default %u)\n"
+	       "  -s, --fadespeed=<speed>		input fadeout speed (default %u)\n"
 	       "  -b, --banding				enable banding of the background\n"
 	       "  -v, --version				display program version and exit\n"
 	       "  -h, --help				display this help and exit\n"

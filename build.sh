@@ -41,6 +41,7 @@ build()
 {
     echo "Building software in '${BUILD_DIR}'."
     cmake \
+        -DCPACK_PACKAGE_VERSION="${RELEASE_VERSION:-}" \
         -DCMAKE_C_COMPILER="${CROSS_COMPILE}gcc" \
         -DARCH="${ARCH}" \
         -H"." \

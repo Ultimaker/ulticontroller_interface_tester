@@ -21,6 +21,7 @@ run_in_docker()
         -e "ARCH=${ARCH}" \
         -e "CROSS_COMPILE=${CROSS_COMPILE}" \
         -e "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" \
+        -e "RELEASE_VERSION=${RELEASE_VERSION:-}" \
         -e "MAKEFLAGS=-j$(($(getconf _NPROCESSORS_ONLN) - 1))" \
         -v "$(pwd):${WORK_DIR}" \
         -w "${WORK_DIR}" \

@@ -31,7 +31,7 @@ run_in_docker()
 
 run_in_shell()
 {
-    PKG_CONFIG_PATH="${PKG_CONFIG_PATH}"
+    PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" \
     CROSS_COMPILE="${CROSS_COMPILE}" \
         sh "${@}"
 }

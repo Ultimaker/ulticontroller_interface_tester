@@ -6,61 +6,51 @@
 # Copyright (C) 2018 Olliver Schinagl <oliver@schinagl.nl>
 #
 
-ARCH="${ARCH:-armhf}"
-CI_REGISTRY_IMAGE="${CI_REGISTRY_IMAGE:-registry.gitlab.com/ultimaker/embedded/platform/ulticontroller_interface_tester}"
-CI_REGISTRY_IMAGE_TAG="${CI_REGISTRY_IMAGE_TAG:-latest}"
-CROSS_COMPILE="${CROSS_COMPILE:-arm-linux-gnueabihf-}"
+ARCH="${ARCH:-arm64}"
+LOCAL_REGISTRY_IMAGE="ulticontroller_interface_tester"
 PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-/usr/lib/arm-linux-gnueabihf/pkgconfig/}"
 WORK_DIR="${WORK_DIR:-/workdir}"
+RELEASE_VERSION="${RELEASE_VERSION:-}"
+
 
 set -eu
 
+
+update_docker_image()
+{
+    echo "Building local Docker build environment."
+    docker build . -t "${LOCAL_REGISTRY_IMAGE}"
+}
+
 run_in_docker()
 {
-    docker run --rm -i -t -h "$(hostname)" -u "$(id -u):$(id -g)" \
+    docker run \
+        --rm \
+        -i \
+        -t \
+        -u "$(id -u)" \
         -e "ARCH=${ARCH}" \
-        -e "CROSS_COMPILE=${CROSS_COMPILE}" \
         -e "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" \
-        -e "RELEASE_VERSION=${RELEASE_VERSION:-}" \
-        -e "MAKEFLAGS=-j$(($(getconf _NPROCESSORS_ONLN) - 1))" \
+        -e "RELEASE_VERSION=${RELEASE_VERSION}" \
         -v "$(pwd):${WORK_DIR}" \
         -w "${WORK_DIR}" \
-        "${CI_REGISTRY_IMAGE}:${CI_REGISTRY_IMAGE_TAG}" \
+        "${LOCAL_REGISTRY_IMAGE}" \
         "${@}"
-}
-
-run_in_shell()
-{
-    PKG_CONFIG_PATH="${PKG_CONFIG_PATH}"
-    CROSS_COMPILE="${CROSS_COMPILE}" \
-        sh "${@}"
-}
-
-run_script()
-{
-    if ! command -V docker; then
-        echo "Docker not found, attempting native run."
-
-        run_in_shell "${@}"
-    else
-        run_in_docker "${@}"
-    fi
 }
 
 build()
 {
     echo "Starting build"
-    run_script "./build.sh" "${@}"
+    run_in_docker "./build.sh" "${@}"
     echo "Build complete"
 }
 
-env_check()
-{
-    echo "Checking environment support."
-    run_script "./test/buildenv.sh"
-}
+if ! command -V docker; then
+    echo "Docker not found, docker-less builds are not supported."
+    exit 1
+fi
 
-env_check
+update_docker_image
 build "${@}"
 
 exit 0

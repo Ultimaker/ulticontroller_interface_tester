@@ -1,15 +1,12 @@
 #!/bin/sh
 #
-# SPDX-License-Identifier: AGPL-3.0+
-#
 # Copyright (C) 2018 Ultimaker B.V.
 # Copyright (C) 2018 Olliver Schinagl <oliver@schinagl.nl>
 #
 
 set -eu
 
-ARCH="${ARCH:-armhf}"
-CROSS_COMPILE="${CROSS_COMPILE:-}"
+ARCH="${ARCH:-arm64}"
 CWD="$(pwd)"
 
 BUILD_DIR="${CWD}/.build_${ARCH}"
@@ -42,11 +39,11 @@ build()
     echo "Building software in '${BUILD_DIR}'."
     cmake \
         -DCPACK_PACKAGE_VERSION="${RELEASE_VERSION:-}" \
-        -DCMAKE_C_COMPILER="${CROSS_COMPILE}gcc" \
+        -DCMAKE_C_COMPILER="aarch64-linux-gnu-gcc" \
         -DARCH="${ARCH}" \
         -H"." \
         -B"${BUILD_DIR}"
-    make -C "${BUILD_DIR}"
+    cmake --build "${BUILD_DIR}"
 }
 
 build_artifact()
